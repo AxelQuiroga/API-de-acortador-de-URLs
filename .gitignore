@@ -1,0 +1,51 @@
+# Dependencies
+node_modules/
+**/node_modules/
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# Logs
+npm-debug.log*
+pnpm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+*.log
+logs/
+
+# Build outputs
+build/
+dist/
+out/
+coverage/
+.next/
+.nuxt/
+
+# Package manager caches
+.pnpm-store/
+.pnpm-debug.log*
+
+# OS / editor files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+*.swp
+
+# Backend specific
+backend/.env
+backend/dist/
+backend/coverage/
+
+# Frontend specific
+frontend/.env
+frontend/dist/
+frontend/build/
+frontend/coverage/
