@@ -52,6 +52,7 @@ pnpm --dir backend start
 |--------|------|-------------|------------|
 | `POST` | `/api/shorten` | Crea una URL corta. Body: `{"originalUrl": "https://..."}` | `201` con `{shortCode, shortUrl, expiresAt}` · `400` URL inválida o JSON malformado |
 | `GET` | `/:shortCode` | Redirige a la URL original | `302` + `Location` · `404` código inexistente · `410` URL vencida |
+| `GET` | `/api/urls/:shortCode` | Info de la URL (visitas, expiración, destino) | `200` JSON · `404` · `410` |
 | `GET` | `/health` | Health check | `200` |
 
 ### Ejemplos
@@ -63,13 +64,16 @@ curl -X POST -H "Content-Type: application/json" \
   http://localhost:3000/api/shorten
 # body.json: {"originalUrl":"https://google.com"}
 
+# Consultar info de una URL corta (visitas, expiración, destino)
+curl http://localhost:3000/api/urls/aB92xQ
+
 # Visitar una URL corta (redirige)
 curl -i http://localhost:3000/aB92xQ
 
 # Errores de dominio
-GET /zzzzzz   → 404 {"error":"Short URL not found"}
-GET /vencida  → 410 {"error":"Short URL has expired"}
-POST ftp://   → 400 {"error":"Solo se permiten URLs http/https"}
+GET /zzzzzz        → 404 {"error":"URL no encontrada"}
+GET /vencida       → 410 {"error":"URL expirada"}
+POST ftp://        → 400 {"error":"Solo se permiten URLs http/https"}
 ```
 
 ## Arquitectura
@@ -114,7 +118,18 @@ backend/
 frontend/                # pendiente
 ```
 
+## Tests
+
+```bash
+# Backend
+cd backend
+pnpm test
+```
+
+- **Unit tests** (`tests/shortUrl.service.test.js`): Service con repositorio fake, cubre creación, validación, colisiones, resolución, info sin incrementar visitas.
+- **Integration tests** (`tests/shortUrl.api.test.js`): Supertest + MongoDB real, cubre todos los endpoints, content negotiation (HTML vs JSON), idempotentes (limpian sus datos).
+
 ## Estado
 
-- Backend: completo y verificado end-to-end (201/302/400/404/410, health y conteo de visitas).
+- Backend: completo y verificado end-to-end (201/302/400/404/410, health, info, visitas, content negotiation).
 - Frontend: pendiente (carpeta vacía).

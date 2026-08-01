@@ -33,30 +33,15 @@ class ShortUrlService {
     }
 
     async resolveShortUrl(shortCode) {
-        const shortUrlDoc = await this.shortUrlRepository.findByShortCode(shortCode);
-
-        if (!shortUrlDoc) {
-            throw new ShortUrlNotFoundError();
-        }
-
-        if (shortUrlDoc.expiresAt < new Date()) {
-            throw new ShortUrlExpiredError();
-        }
+        const shortUrlDoc = await this.#getValidShortUrl(shortCode);
 
         await this.shortUrlRepository.incrementVisits(shortCode);
+        
         return shortUrlDoc.originalUrl;
     }
 
     async getShortUrlInfo(shortCode) {
-        const shortUrlDoc = await this.shortUrlRepository.findByShortCode(shortCode);
-
-        if (!shortUrlDoc) {
-            throw new ShortUrlNotFoundError();
-        }
-
-        if (shortUrlDoc.expiresAt < new Date()) {
-            throw new ShortUrlExpiredError();
-        }
+        const shortUrlDoc = await this.#getValidShortUrl(shortCode);
 
         return new ShortUrlInfoResponseDto({
             shortCode: shortUrlDoc.shortCode,
@@ -89,6 +74,20 @@ class ShortUrlService {
             shortCode = this.shortCodeGenerator.generate();
         }
         return shortCode;
+    }
+
+    async #getValidShortUrl(shortCode) {
+        const shortUrlDoc = await this.shortUrlRepository.findByShortCode(shortCode);
+
+        if (!shortUrlDoc) {
+            throw new ShortUrlNotFoundError();
+        }
+        
+        if (shortUrlDoc.expiresAt < new Date()) {
+            throw new ShortUrlExpiredError();
+        }
+        
+        return shortUrlDoc;
     }
 }
 

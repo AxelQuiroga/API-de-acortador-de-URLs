@@ -178,6 +178,24 @@ Los errores del dominio se modelan con una clase base `DomainError` que lleva `s
 
 El Service tira estos errores; el error middleware los mapea a responses HTTP. Los errores de Express/body-parser (ej: JSON malformado) traen su propio `statusCode` y se respetan igual. Un error sin `statusCode` que no sea `DomainError` se considera error de sistema (500).
 
+**Content negotiation:** Para 404 y 410, si el cliente acepta `text/html` (navegador), el error handler devuelve una página HTML en español con link a `FRONTEND_URL`; si acepta `application/json` (API), devuelve JSON. Así el usuario final nunca ve JSON crudo.
+
+## CORS y Frontend URL
+
+`CORS_ORIGIN` y `FRONTEND_URL` viven en el env (zod, defaults `*` y `http://localhost:3001`). `CORS_ORIGIN` se usa en `cors({ origin: env.CORS_ORIGIN })`. `FRONTEND_URL` se usa en las páginas de error HTML para el link "Volver al inicio".
+
+## Mensajes de error
+
+Todos los mensajes de error de dominio están en español: "La URL no es válida", "Solo se permiten URLs http/https", "URL no encontrada", "URL expirada".
+
+## Tests
+
+Tests automatizados con `node:test` + `supertest` (devDependency). Script: `pnpm test`.
+
+- Unit tests: Service con repositorio fake inyectado (DI en el constructor).
+- Integration tests: Supertest contra app real + MongoDB local, idempotentes (códigos únicos + cleanup).
+- Content negotiation testeado: 404/410 devuelven HTML si `Accept: text/html`, JSON si `Accept: application/json`.
+
 ## BASE_URL
 
 La URL corta completa se construye en el Service como `BASE_URL + "/" + shortCode`.
