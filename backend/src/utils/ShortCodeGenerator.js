@@ -15,3 +15,5 @@ class ShortCodeGenerator {
     return code;
     }
 }
+
+export default new ShortCodeGenerator();

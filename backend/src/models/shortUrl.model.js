@@ -12,7 +12,6 @@ const shortUrlSchema = new Schema(
       type: String,
       required: true,
       unique: true,
-      index: true,
     },
 
     visits: {
@@ -23,7 +22,7 @@ const shortUrlSchema = new Schema(
 
     expiresAt: {
       type: Date,
-      default: 0,
+      required: true,
     },
   },
   {

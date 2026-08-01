@@ -6,6 +6,7 @@ dotenv.config();
 const envSchema = z.object({
   PORT: z.coerce.number().default(3000),
   MONGODB_URI: z.string().url("MONGODB_URI debe ser una URL válida"),
+  BASE_URL: z.string().url().default("http://localhost:3000"),
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
 });
 
