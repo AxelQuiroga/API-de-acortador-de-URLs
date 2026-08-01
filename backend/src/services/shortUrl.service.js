@@ -1,6 +1,7 @@
 import shortUrlRepository from "../repositories/shortUrl.repository.js";
 import shortCodeGenerator from "../utils/ShortCodeGenerator.js";
 import CreateShortUrlResponseDto from "../dto/responses/createShortUrlResponseDto.js";
+import ShortUrlInfoResponseDto from "../dto/responses/shortUrlInfoResponseDto.js";
 import { InvalidUrlError } from "../errors/invalidUrlError.js";
 import { ShortUrlNotFoundError } from "../errors/shortUrlNotFoundError.js";
 import { ShortUrlExpiredError } from "../errors/shortUrlExpiredError.js";
@@ -9,9 +10,9 @@ import { env } from "../config/env.js";
 const EXPIRATION_DAYS = 30;
 
 class ShortUrlService {
-    constructor() {
-        this.shortUrlRepository = shortUrlRepository;
-        this.shortCodeGenerator = shortCodeGenerator;
+    constructor(repository = shortUrlRepository, generator = shortCodeGenerator) {
+        this.shortUrlRepository = repository;
+        this.shortCodeGenerator = generator;
     }
 
     async createShortUrl(dto) {
@@ -46,6 +47,27 @@ class ShortUrlService {
         return shortUrlDoc.originalUrl;
     }
 
+    async getShortUrlInfo(shortCode) {
+        const shortUrlDoc = await this.shortUrlRepository.findByShortCode(shortCode);
+
+        if (!shortUrlDoc) {
+            throw new ShortUrlNotFoundError();
+        }
+
+        if (shortUrlDoc.expiresAt < new Date()) {
+            throw new ShortUrlExpiredError();
+        }
+
+        return new ShortUrlInfoResponseDto({
+            shortCode: shortUrlDoc.shortCode,
+            originalUrl: shortUrlDoc.originalUrl,
+            shortUrl: `${env.BASE_URL}/${shortUrlDoc.shortCode}`,
+            visits: shortUrlDoc.visits,
+            createdAt: shortUrlDoc.createdAt,
+            expiresAt: shortUrlDoc.expiresAt,
+        });
+    }
+
     #parseAndValidateUrl(originalUrl) {
         let parsedUrl;
         try {
@@ -71,3 +93,4 @@ class ShortUrlService {
 }
 
 export default new ShortUrlService();
+export { ShortUrlService };

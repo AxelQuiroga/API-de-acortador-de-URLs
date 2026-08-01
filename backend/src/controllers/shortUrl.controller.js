@@ -12,6 +12,11 @@ class ShortUrlController {
         const originalUrl = await shortUrlService.resolveShortUrl(req.params.shortCode);
         res.redirect(302, originalUrl);
     }
+
+    async getShortUrlInfo(req, res) {
+        const info = await shortUrlService.getShortUrlInfo(req.params.shortCode);
+        res.json(info);
+    }
 }
 
 export default new ShortUrlController();
