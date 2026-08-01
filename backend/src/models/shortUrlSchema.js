@@ -23,7 +23,7 @@ const shortUrlSchema = new Schema(
 
     expiresAt: {
       type: Date,
-      default: null,
+      default: 0,
     },
   },
   {
