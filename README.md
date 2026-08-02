@@ -11,18 +11,23 @@ Salida:   {"shortCode": "aB92xQ", "shortUrl": "http://localhost:3000/aB92xQ", "e
 ## Funcionalidades
 
 - Crear URLs cortas (código alfanumérico único de 6 caracteres)
-- Evitar colisiones de código (el Service regenera si ya existe)
+- Evitar colisiones de código (reintenta hasta 5 veces en caso de E11000)
 - Contar visitas por URL corta
 - Expiración a los 30 días (410 Gone al vencer)
 - Redirección con HTTP 302
 - Validación: solo URLs `http`/`https` (400 en caso contrario)
+- Rate limiting: 100 requests por 15 minutos en POST /api/shorten
+- Body limit: 10KB máximo
+- Content negotiation: API routes siempre retornan JSON, rutas no-API retornan HTML para errores 404/410
+- Health check con verificación de estado de MongoDB
+- Graceful shutdown (SIGTERM/SIGINT)
 
 ## Stack
 
 - Node.js + Express 5 (JavaScript, ES Modules)
 - MongoDB + Mongoose 9
 - Zod (validación de env)
-- Helmet, CORS, Morgan
+- Helmet, CORS, Morgan, express-rate-limit
 - pnpm
 
 ## Requisitos
@@ -46,6 +51,19 @@ pnpm install
 pnpm dev                      # http://localhost:3001
 ```
 
+## Variables de entorno
+
+| Variable | Requerida | Default | Descripción |
+|----------|-----------|---------|-------------|
+| `PORT` | No | `3000` | Puerto del servidor |
+| `MONGODB_URI` | No | `mongodb://127.0.0.1:27017/url-shortener` | URI de conexión a MongoDB |
+| `BASE_URL` | **Sí** | — | URL base para generar los links cortos (ej: `https://tu-dominio.com`) |
+| `CORS_ORIGIN` | **Sí** | — | Origen permitido para CORS (ej: `https://tu-frontend.com`) |
+| `FRONTEND_URL` | **Sí** | — | URL del frontend (ej: `https://tu-frontend.com`) |
+| `NODE_ENV` | No | `development` | `development` o `production` |
+
+> **Producción**: En modo `production`, `CORS_ORIGIN` no puede ser `*`, y `BASE_URL`/`FRONTEND_URL` no pueden contener `localhost`.
+
 ## API
 
 | Método | Ruta | Descripción | Respuestas |
@@ -53,7 +71,7 @@ pnpm dev                      # http://localhost:3001
 | `POST` | `/api/shorten` | Crea una URL corta. Body: `{"originalUrl": "https://..."}` | `201` con `{shortCode, shortUrl, expiresAt}` · `400` URL inválida o JSON malformado |
 | `GET` | `/:shortCode` | Redirige a la URL original | `302` + `Location` · `404` código inexistente · `410` URL vencida |
 | `GET` | `/api/urls/:shortCode` | Info de la URL (visitas, expiración, destino) | `200` JSON · `404` · `410` |
-| `GET` | `/health` | Health check | `200` |
+| `GET` | `/health` | Health check con estado de DB | `200` OK · `503` DB no conectada |
 
 ### Ejemplos
 
@@ -74,6 +92,7 @@ curl -i http://localhost:3000/aB92xQ
 GET /zzzzzz        → 404 {"error":"URL no encontrada"}
 GET /vencida       → 410 {"error":"URL expirada"}
 POST ftp://        → 400 {"error":"Solo se permiten URLs http/https"}
+POST sin body      → 400 {"error":"Se requiere originalUrl"}
 ```
 
 ## Arquitectura
@@ -113,7 +132,7 @@ backend/
 │   ├── routes/          # definición de rutas
 │   ├── services/        # lógica de negocio
 │   └── utils/           # ShortCodeGenerator
-├── server.js            # bootstrap
+├── server.js            # bootstrap + graceful shutdown
 └── .env.example
 
 frontend/
@@ -134,10 +153,10 @@ cd backend
 pnpm test
 ```
 
-- **Unit tests** (`tests/shortUrl.service.test.js`): Service con repositorio fake, cubre creación, validación, colisiones, resolución, info sin incrementar visitas.
-- **Integration tests** (`tests/shortUrl.api.test.js`): Supertest + MongoDB real, cubre todos los endpoints, content negotiation (HTML vs JSON), idempotentes (limpian sus datos).
+- **Unit tests** (`tests/shortUrl.service.test.js`): Service con repositorio fake, cubre creación, validación, colisiones (E11000), resolución, info sin incrementar visitas.
+- **Integration tests** (`tests/shortUrl.api.test.js`): Supertest + MongoDB real, cubre todos los endpoints, content negotiation (API routes siempre JSON), health check, idempotentes (limpian sus datos).
 
 ## Estado
 
-- Backend: completo y verificado end-to-end (201/302/400/404/410, health, info, visitas, content negotiation).
+- Backend: completo y verificado end-to-end (201/302/400/404/410, health, info, visitas, rate limiting, graceful shutdown).
 - Frontend: funcional (vanilla HTML/CSS/JS, historial localStorage, click para ver stats).

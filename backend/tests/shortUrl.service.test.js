@@ -50,29 +50,26 @@ describe("ShortUrlService", () => {
             );
         });
 
-        test("retries code generation when the code collides", async () => {
-            let findByShortCodeCalls = 0;
-            let generateCalls = 0;
+        test("retries on E11000 duplicate key and succeeds", async () => {
+            let createCalls = 0;
 
             const repository = createFakeRepository({
-                findByShortCode: async () => {
-                    findByShortCodeCalls += 1;
-                    return findByShortCodeCalls === 1 ? { shortCode: "abc123" } : null;
+                create: async (data) => {
+                    createCalls += 1;
+                    if (createCalls === 1) {
+                        const err = new Error("Duplicate key");
+                        err.code = 11000;
+                        throw err;
+                    }
+                    return { shortCode: data.shortCode, originalUrl: data.originalUrl, expiresAt: data.expiresAt };
                 },
             });
 
-            const generator = {
-                generate: () => {
-                    generateCalls += 1;
-                    return "abc123";
-                },
-            };
-
-            const service = new ShortUrlService(repository, generator);
+            const service = new ShortUrlService(repository, fakeGenerator);
             const result = await service.createShortUrl({ originalUrl: "https://google.com" });
 
-            assert.equal(generateCalls, 2);
-            assert.equal(result.shortCode, "abc123");
+            assert.equal(createCalls, 2);
+            assert.ok(result.shortCode);
         });
     });
 

@@ -20,16 +20,30 @@ class ShortUrlService {
 
         this.#parseAndValidateUrl(originalUrl);
 
-        const shortCode = await this.#generateUniqueShortCode();
-        const expiresAt = new Date(Date.now() + 1000 * 60 * 60 * 24 * EXPIRATION_DAYS);
+        const MAX_RETRIES = 5;
+        let lastError;
 
-        const shortUrlDoc = await this.shortUrlRepository.create({ originalUrl, shortCode, expiresAt });
+        for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+            const shortCode = this.shortCodeGenerator.generate();
+            const expiresAt = new Date(Date.now() + 1000 * 60 * 60 * 24 * EXPIRATION_DAYS);
 
-        return new CreateShortUrlResponseDto({
-            shortCode: shortUrlDoc.shortCode,
-            shortUrl: `${env.BASE_URL}/${shortUrlDoc.shortCode}`,
-            expiresAt: shortUrlDoc.expiresAt,
-        });
+            try {
+                const shortUrlDoc = await this.shortUrlRepository.create({ originalUrl, shortCode, expiresAt });
+                return new CreateShortUrlResponseDto({
+                    shortCode: shortUrlDoc.shortCode,
+                    shortUrl: `${env.BASE_URL}/${shortUrlDoc.shortCode}`,
+                    expiresAt: shortUrlDoc.expiresAt,
+                });
+            } catch (err) {
+                if (err.code === 11000) {
+                    lastError = err;
+                    continue;
+                }
+                throw err;
+            }
+        }
+
+        throw lastError;
     }
 
     async resolveShortUrl(shortCode) {
@@ -68,13 +82,7 @@ class ShortUrlService {
         return parsedUrl;
     }
 
-    async #generateUniqueShortCode() {
-        let shortCode = this.shortCodeGenerator.generate();
-        while (await this.shortUrlRepository.findByShortCode(shortCode)) {
-            shortCode = this.shortCodeGenerator.generate();
-        }
-        return shortCode;
-    }
+
 
     async #getValidShortUrl(shortCode) {
         const shortUrlDoc = await this.shortUrlRepository.findByShortCode(shortCode);

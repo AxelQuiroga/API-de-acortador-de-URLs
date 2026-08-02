@@ -52,10 +52,11 @@ Funcionalidades principales:
 Backend:
 
 - Node.js
-- Express
+- Express 5
 - JavaScript ES Modules
-- MongoDB
-- Mongoose
+- MongoDB + Mongoose 9
+- Zod (validación de env)
+- Helmet, CORS, Morgan, express-rate-limit
 - pnpm
 
 
@@ -138,26 +139,13 @@ Los códigos cortos:
 
 ## Colisiones
 
-La unicidad del código será responsabilidad del Service.
+La unicidad del código es responsabilidad del Service + la constraint unique de MongoDB.
 
 Flujo:
 
-Generar código
+Generar código → Intentar crear → Si falla con E11000 (duplicate key) → Regenerar y reintentar (máx. 5 veces)
 
-↓
-
-Buscar si existe
-
-↓
-
-Si existe generar otro
-
-↓
-
-Guardar
-
-
-El generador NO verifica la base de datos.
+El generador NO verifica la base de datos. La constraint unique de MongoDB es la última línea de defensa.
 
 
 ## Expiración
@@ -178,11 +166,13 @@ Los errores del dominio se modelan con una clase base `DomainError` que lleva `s
 
 El Service tira estos errores; el error middleware los mapea a responses HTTP. Los errores de Express/body-parser (ej: JSON malformado) traen su propio `statusCode` y se respetan igual. Un error sin `statusCode` que no sea `DomainError` se considera error de sistema (500).
 
-**Content negotiation:** Para 404 y 410, si el cliente acepta `text/html` (navegador), el error handler devuelve una página HTML en español con link a `FRONTEND_URL`; si acepta `application/json` (API), devuelve JSON. Así el usuario final nunca ve JSON crudo.
+**Content negotiation:** Las rutas API (`/api/*`) SIEMPRE devuelven JSON, sin importar el header `Accept`. Las rutas no-API (como `/:shortCode`) devuelven HTML si el cliente acepta `text/html`, JSON si acepta `application/json`. Esto evita que `fetch()` reciba HTML cuando espera JSON.
 
 ## CORS y Frontend URL
 
-`CORS_ORIGIN` y `FRONTEND_URL` viven en el env (zod, defaults `*` y `http://localhost:3001`). `CORS_ORIGIN` se usa en `cors({ origin: env.CORS_ORIGIN })`. `FRONTEND_URL` se usa en las páginas de error HTML para el link "Volver al inicio".
+`CORS_ORIGIN` y `FRONTEND_URL` viven en el env (zod). `CORS_ORIGIN` se usa en `cors({ origin: env.CORS_ORIGIN })`. `FRONTEND_URL` se usa en las páginas de error HTML para el link "Volver al inicio".
+
+En producción: `CORS_ORIGIN` no puede ser `*`, y `BASE_URL`/`FRONTEND_URL` no pueden contener `localhost` (validado con superRefine en zod).
 
 ## Mensajes de error
 
@@ -194,13 +184,13 @@ Tests automatizados con `node:test` + `supertest` (devDependency). Script: `pnpm
 
 - Unit tests: Service con repositorio fake inyectado (DI en el constructor).
 - Integration tests: Supertest contra app real + MongoDB local, idempotentes (códigos únicos + cleanup).
-- Content negotiation testeado: 404/410 devuelven HTML si `Accept: text/html`, JSON si `Accept: application/json`.
+- API routes SIEMPRE retornan JSON (testeado con Accept: text/html).
 
 ## BASE_URL
 
 La URL corta completa se construye en el Service como `BASE_URL + "/" + shortCode`.
 
-`BASE_URL` vive en el env (zod, con default `http://localhost:3000`), sin slash final. Una sola fuente de verdad.
+`BASE_URL` vive en el env (zod), sin slash final. Una sola fuente de verdad. En producción no puede contener `localhost`.
 
 ## Validación de URLs
 
@@ -210,9 +200,25 @@ El Service valida las URLs: solo se aceptan `http:` y `https:`. El parseo fallid
 
 Una URL expirada responde 410 Gone (existió pero ya no está). El 404 queda para códigos que nunca existieron.
 
+## Rate limiting
+
+POST /api/shorten tiene rate limiting: 100 requests por 15 minutos por IP. Usa `express-rate-limit` con `trust proxy: 1` para funcionar detrás de proxies (Render, Railway, Nginx).
+
+## Body limit
+
+El body de las requests está limitado a 10KB (`express.json({ limit: '10kb' })`).
+
+## Health check
+
+`GET /health` verifica el estado de MongoDB (`mongoose.connection.readyState`). Retorna 200 si está conectado, 503 si no.
+
+## Graceful shutdown
+
+El server maneja SIGTERM y SIGINT: cierra el servidor HTTP y desconecta Mongoose antes de exit. Esto es obligatorio en la mayoría de plataformas de deploy (Render, Railway, Fly.io).
+
 ## Métodos privados en el Service
 
-La validación de URLs y la generación de códigos únicos son métodos privados (`#`) del Service, para que los métodos públicos lean como una lista de intenciones a un solo nivel de abstracción.
+La validación de URLs es un método privado (`#`) del Service: `#validateUrl(url)`. La generación de códigos se delega a `ShortCodeGenerator` (inyectado, externo).
 
 
 # Reglas importantes

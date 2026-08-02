@@ -197,7 +197,7 @@ form.addEventListener('submit', async (e) => {
             shortCode: data.shortCode,
             originalUrl: url,
             shortUrl: data.shortUrl,
-            createdAt: data.expiresAt,
+            createdAt: new Date().toISOString(),
         });
         renderHistory();
         urlInput.value = '';

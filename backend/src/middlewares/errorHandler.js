@@ -57,7 +57,9 @@ const errorPage = ({ title, message }) => `<!DOCTYPE html>
 `;
 
 export const errorHandler = (err, req, res, next) => {
-    if ((err.statusCode === 404 || err.statusCode === 410) && req.accepts("html")) {
+    const isApiRoute = req.path.startsWith('/api/');
+
+    if (!isApiRoute && (err.statusCode === 404 || err.statusCode === 410) && req.accepts("html")) {
         const html =
             err.statusCode === 404
                 ? errorPage({

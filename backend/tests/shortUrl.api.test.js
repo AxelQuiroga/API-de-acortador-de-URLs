@@ -129,13 +129,13 @@ describe("Short URL API", () => {
         assert.equal(res.body.error, "URL expirada");
     });
 
-    test("GET /api/urls/:nonexistent returns HTML page when the client accepts HTML", async () => {
+    test("GET /api/urls/:nonexistent always returns JSON (even with Accept: text/html)", async () => {
         const res = await request(app)
             .get("/api/urls/doesnotexist123")
             .set("Accept", "text/html");
 
         assert.equal(res.status, 404);
-        assert.match(res.headers["content-type"], /text\/html/);
-        assert.ok(res.text.includes("URL no encontrada"));
+        assert.match(res.headers["content-type"], /application\/json/);
+        assert.equal(res.body.error, "URL no encontrada");
     });
 });
