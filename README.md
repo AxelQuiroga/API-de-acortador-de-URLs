@@ -34,16 +34,16 @@ Salida:   {"shortCode": "aB92xQ", "shortUrl": "http://localhost:3000/aB92xQ", "e
 ## Puesta en marcha
 
 ```bash
+# Backend
+cd backend
 pnpm install
+Copy-Item .env.example .env   # ajustá si hace falta
+pnpm dev                      # http://localhost:3000
 
-# Configurá el entorno
-Copy-Item backend/.env.example backend/.env   # y ajustá si hace falta
-
-# Modo desarrollo (con auto-reload)
-pnpm --dir backend dev
-
-# Producción
-pnpm --dir backend start
+# Frontend (otra terminal)
+cd frontend
+pnpm install
+pnpm dev                      # http://localhost:3001
 ```
 
 ## API
@@ -115,7 +115,15 @@ backend/
 │   └── utils/           # ShortCodeGenerator
 ├── server.js            # bootstrap
 └── .env.example
-frontend/                # pendiente
+
+frontend/
+├── index.html           # página única
+├── css/styles.css       # estilos (mobile-first)
+├── js/
+│   ├── config.js        # API_URL
+│   ├── api.js           # fetch wrappers
+│   └── app.js           # DOM, eventos, render, localStorage
+└── server.js            # mini server Node (puerto 3001)
 ```
 
 ## Tests
@@ -132,4 +140,4 @@ pnpm test
 ## Estado
 
 - Backend: completo y verificado end-to-end (201/302/400/404/410, health, info, visitas, content negotiation).
-- Frontend: pendiente (carpeta vacía).
+- Frontend: funcional (vanilla HTML/CSS/JS, historial localStorage, click para ver stats).

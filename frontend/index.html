@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Acorta — Acortador de URLs</title>
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+    <header class="header">
+        <h1 class="header__title">Acorta</h1>
+        <p class="header__subtitle">Acortá cualquier URL en un segundo</p>
+    </header>
+
+    <main class="main">
+        <!-- Formulario -->
+        <section class="form-section">
+            <form id="shorten-form" class="form">
+                <input
+                    type="url"
+                    id="url-input"
+                    class="form__input"
+                    placeholder="https://ejemplo.com/muy-larga-url..."
+                    required
+                    autocomplete="off"
+                >
+                <button type="submit" id="submit-btn" class="form__btn">Acortar</button>
+            </form>
+            <div id="error-message" class="error hidden" role="alert"></div>
+        </section>
+
+        <!-- Resultado -->
+        <section id="result-section" class="result hidden">
+            <h2 class="section-title">Tu URL corta</h2>
+            <div class="result__card">
+                <span id="short-url" class="result__url"></span>
+                <div class="result__actions">
+                    <button id="copy-btn" class="btn btn--primary">Copiar</button>
+                    <a id="open-btn" href="#" target="_blank" rel="noopener" class="btn btn--outline">Abrir</a>
+                </div>
+            </div>
+            <p id="expires-at" class="result__expires"></p>
+        </section>
+
+        <!-- Info (click en historial) -->
+        <section id="info-section" class="info hidden">
+            <h2 class="section-title">Detalles</h2>
+            <div class="info__card">
+                <div class="info__row">
+                    <span class="info__label">Original</span>
+                    <span id="info-original" class="info__value"></span>
+                </div>
+                <div class="info__row">
+                    <span class="info__label">Corta</span>
+                    <span id="info-short" class="info__value"></span>
+                </div>
+                <div class="info__row">
+                    <span class="info__label">Visitas</span>
+                    <span id="info-visits" class="info__value"></span>
+                </div>
+                <div class="info__row">
+                    <span class="info__label">Creada</span>
+                    <span id="info-created" class="info__value"></span>
+                </div>
+                <div class="info__row">
+                    <span class="info__label">Expira</span>
+                    <span id="info-expires" class="info__value"></span>
+                </div>
+            </div>
+            <button id="info-close" class="btn btn--text">Cerrar</button>
+        </section>
+
+        <!-- Historial -->
+        <section id="history-section" class="history">
+            <div class="history__header">
+                <h2 class="section-title">Historial</h2>
+                <button id="clear-btn" class="btn btn--text hidden">Limpiar</button>
+            </div>
+            <ul id="history-list" class="history__list"></ul>
+            <p id="empty-history" class="history__empty">No hay URLs creadas todavía</p>
+        </section>
+    </main>
+
+    <footer class="footer">
+        <p>URL Shortener API — Node.js + Express + MongoDB</p>
+    </footer>
+
+    <script type="module" src="js/app.js"></script>
+</body>
+</html>
