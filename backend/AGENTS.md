@@ -172,7 +172,9 @@ El Service tira estos errores; el error middleware los mapea a responses HTTP. L
 
 `CORS_ORIGIN` y `FRONTEND_URL` viven en el env (zod). `CORS_ORIGIN` se usa en `cors({ origin: env.CORS_ORIGIN })`. `FRONTEND_URL` se usa en las páginas de error HTML para el link "Volver al inicio".
 
-En producción: `CORS_ORIGIN` no puede ser `*`, y `BASE_URL`/`FRONTEND_URL` no pueden contener `localhost` (validado con superRefine en zod).
+`CORS_ORIGIN` acepta múltiples orígenes separados por coma (ej: `https://a.com,https://b.com`). El schema lo transforma a un array con `.transform()`.
+
+En producción: `CORS_ORIGIN` no puede ser `*`, y `BASE_URL`/`FRONTEND_URL` no pueden contener `localhost`, `127.0.0.1` ni `0.0.0.0` (validado con superRefine + regex en zod).
 
 ## Mensajes de error
 
@@ -186,11 +188,24 @@ Tests automatizados con `node:test` + `supertest` (devDependency). Script: `pnpm
 - Integration tests: Supertest contra app real + MongoDB local, idempotentes (códigos únicos + cleanup).
 - API routes SIEMPRE retornan JSON (testeado con Accept: text/html).
 
+## Frontend servido desde Express
+
+En producción, Express sirve el frontend estático con `express.static('../frontend')`. Esto:
+- Resuelve el path traversal de `frontend/server.js` (ya no se deploya)
+- Elimina la necesidad de CORS para el frontend (mismo origen)
+- Permite usar rutas relativas en `config.js` (`API_URL = ''`)
+
+`frontend/server.js` es solo para desarrollo local con hot reload.
+
+## Ruta /:shortCode
+
+La ruta de redirect es `/:shortCode` sin regex (Express 5 / path-to-regexp v8 no soporta `/:param(regex)`). La validación de longitud (6 caracteres) se hace en el Controller antes de llegar al Service. Los archivos estáticos se sirven ANTES de las rutas (express.static va primero en app.js), así que `/favicon.ico`, `/styles.css` etc. nunca llegan a esta ruta.
+
 ## BASE_URL
 
 La URL corta completa se construye en el Service como `BASE_URL + "/" + shortCode`.
 
-`BASE_URL` vive en el env (zod), sin slash final. Una sola fuente de verdad. En producción no puede contener `localhost`.
+`BASE_URL` vive en el env (zod), sin slash final. Una sola fuente de verdad. En producción no puede contener `localhost`, `127.0.0.1` ni `0.0.0.0`.
 
 ## Validación de URLs
 
@@ -214,7 +229,7 @@ El body de las requests está limitado a 10KB (`express.json({ limit: '10kb' })`
 
 ## Graceful shutdown
 
-El server maneja SIGTERM y SIGINT: cierra el servidor HTTP y desconecta Mongoose antes de exit. Esto es obligatorio en la mayoría de plataformas de deploy (Render, Railway, Fly.io).
+El server maneja SIGTERM y SIGINT: hace `await` en `server.close()` (envuelto en Promise) antes de desconectar Mongoose. Incluye un `setTimeout(...).unref()` de 10 segundos que fuerza la salida si algo se cuelga. Esto es obligatorio en la mayoría de plataformas de deploy (Render, Railway, Fly.io).
 
 ## Métodos privados en el Service
 

@@ -13,7 +13,11 @@ class ShortUrlController {
     }
 
     async resolveShortUrl(req, res) {
-        const originalUrl = await shortUrlService.resolveShortUrl(req.params.shortCode);
+        const { shortCode } = req.params;
+        if (!shortCode || shortCode.length !== 6) {
+            throw new InvalidUrlError("El código debe tener exactamente 6 caracteres");
+        }
+        const originalUrl = await shortUrlService.resolveShortUrl(shortCode);
         res.redirect(302, originalUrl);
     }
 

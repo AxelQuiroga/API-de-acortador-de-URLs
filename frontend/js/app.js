@@ -71,8 +71,8 @@ function renderHistory() {
             (item) => `
         <li class="history-item" data-short-code="${item.shortCode}">
             <div class="history-item__info">
-                <span class="history-item__original">${truncate(item.originalUrl, 45)}</span>
-                <span class="history-item__short">${item.shortUrl}</span>
+                <span class="history-item__original">${escapeHtml(truncate(item.originalUrl, 45))}</span>
+                <span class="history-item__short">${escapeHtml(item.shortUrl)}</span>
             </div>
             <div class="history-item__actions">
                 <button class="btn btn--sm btn--copy" data-url="${item.shortUrl}">Copiar</button>
@@ -165,6 +165,11 @@ async function copyToClipboard(text, btn) {
 }
 
 // ── Helpers ──────────────────────────────────────────
+function escapeHtml(str) {
+    const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
+    return str.replace(/[&<>"']/g, (c) => map[c]);
+}
+
 function truncate(str, max) {
     return str.length > max ? str.slice(0, max) + '…' : str;
 }

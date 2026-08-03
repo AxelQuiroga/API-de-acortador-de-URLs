@@ -14,13 +14,24 @@ const startServer = async () => {
         // Graceful shutdown
         const shutdown = async (signal) => {
             console.log(`${signal} recibido, cerrando conexiones...`);
-            server.close(() => {
-                console.log('Servidor HTTP cerrado.');
+            await new Promise((resolve, reject) => {
+                server.close((err) => {
+                    if (err) reject(err);
+                    else resolve();
+                });
             });
+            console.log('Servidor HTTP cerrado.');
             await mongoose.disconnect();
             console.log('Conexión a MongoDB cerrada.');
             process.exit(0);
         };
+
+        // Forzar salida después de 10s si algo se cuelga
+        const forceExit = setTimeout(() => {
+            console.error('Forzando salida después de 10s');
+            process.exit(1);
+        }, 10000);
+        forceExit.unref();
 
         process.on('SIGTERM', () => shutdown('SIGTERM'));
         process.on('SIGINT', () => shutdown('SIGINT'));

@@ -5,6 +5,7 @@ import ShortUrlInfoResponseDto from "../dto/responses/shortUrlInfoResponseDto.js
 import { InvalidUrlError } from "../errors/invalidUrlError.js";
 import { ShortUrlNotFoundError } from "../errors/shortUrlNotFoundError.js";
 import { ShortUrlExpiredError } from "../errors/shortUrlExpiredError.js";
+import { DomainError } from "../errors/domainError.js";
 import { env } from "../config/env.js";
 
 const EXPIRATION_DAYS = 30;
@@ -43,7 +44,7 @@ class ShortUrlService {
             }
         }
 
-        throw lastError;
+        throw new DomainError(503, 'No se pudo generar un código único, intentá de nuevo');
     }
 
     async resolveShortUrl(shortCode) {

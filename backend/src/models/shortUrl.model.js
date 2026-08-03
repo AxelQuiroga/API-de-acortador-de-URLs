@@ -27,6 +27,7 @@ const shortUrlSchema = new Schema(
   },
   {
     timestamps: true,
+    autoIndex: false,
   }
 );
 

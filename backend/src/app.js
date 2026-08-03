@@ -1,4 +1,6 @@
 import express from "express";
+import path from "path";
+import { fileURLToPath } from "url";
 import cors from "cors";
 import helmet from "helmet";
 import morgan from "morgan";
@@ -8,6 +10,9 @@ import shortUrlRoutes from "./routes/shortUrl.routes.js";
 import { errorHandler } from "./middlewares/errorHandler.js";
 import { ShortUrlNotFoundError } from "./errors/shortUrlNotFoundError.js";
 import { env } from "./config/env.js";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const app = express();
 
@@ -22,6 +27,9 @@ app.use(cors({ origin: env.CORS_ORIGIN }));
 app.use(express.json({ limit: '10kb' }));
 
 app.use(morgan(env.NODE_ENV === 'production' ? 'combined' : 'dev'));
+
+// Servir frontend estático (mismo origen, sin CORS)
+app.use(express.static(path.join(__dirname, '../../frontend')));
 
 // Rate limiting en POST /api/shorten
 const limiter = rateLimit({

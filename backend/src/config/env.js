@@ -7,7 +7,7 @@ const envSchema = z.object({
   PORT: z.coerce.number().default(3000),
   MONGODB_URI: z.string().url("MONGODB_URI debe ser una URL válida"),
   BASE_URL: z.string().url().default("http://localhost:3000"),
-  CORS_ORIGIN: z.string().default("*"),
+  CORS_ORIGIN: z.string().default("*").transform(s => s.split(',').map(v => v.trim())),
   FRONTEND_URL: z.string().url().default("http://localhost:3001"),
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
 }).superRefine((data, ctx) => {
@@ -15,10 +15,10 @@ const envSchema = z.object({
     if (data.CORS_ORIGIN === '*') {
       ctx.addIssue({ code: 'custom', path: ['CORS_ORIGIN'], message: 'CORS_ORIGIN debe ser explícito en producción (no usar *)' });
     }
-    if (data.BASE_URL.includes('localhost')) {
+    if (/localhost|127\.0\.0\.1|0\.0\.0\.0/.test(data.BASE_URL)) {
       ctx.addIssue({ code: 'custom', path: ['BASE_URL'], message: 'BASE_URL debe ser explícito en producción' });
     }
-    if (data.FRONTEND_URL.includes('localhost')) {
+    if (/localhost|127\.0\.0\.1|0\.0\.0\.0/.test(data.FRONTEND_URL)) {
       ctx.addIssue({ code: 'custom', path: ['FRONTEND_URL'], message: 'FRONTEND_URL debe ser explícito en producción' });
     }
   }

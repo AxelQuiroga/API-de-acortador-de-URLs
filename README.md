@@ -5,7 +5,7 @@ API de acortamiento de URLs: recibís una URL original y el sistema genera una U
 ```
 POST /api/shorten
 Entrada:  {"originalUrl": "https://google.com"}
-Salida:   {"shortCode": "aB92xQ", "shortUrl": "http://localhost:3000/aB92xQ", "expiresAt": "2026-08-31T16:05:50.321Z"}
+Salida:   {"shortCode": "aB92xQ", "shortUrl": "https://tu-app.onrender.com/aB92xQ", "expiresAt": "2026-08-31T16:05:50.321Z"}
 ```
 
 ## Funcionalidades
@@ -21,6 +21,7 @@ Salida:   {"shortCode": "aB92xQ", "shortUrl": "http://localhost:3000/aB92xQ", "e
 - Content negotiation: API routes siempre retornan JSON, rutas no-API retornan HTML para errores 404/410
 - Health check con verificación de estado de MongoDB
 - Graceful shutdown (SIGTERM/SIGINT)
+- Frontend servido desde Express (mismo origen, sin CORS)
 
 ## Stack
 
@@ -32,46 +33,49 @@ Salida:   {"shortCode": "aB92xQ", "shortUrl": "http://localhost:3000/aB92xQ", "e
 
 ## Requisitos
 
-- Node.js 20+
+- Node.js 20+ (`engines` configurado en package.json)
 - MongoDB corriendo localmente (default: `mongodb://127.0.0.1:27017`)
 - pnpm
 
 ## Puesta en marcha
 
 ```bash
-# Backend
+# Backend (sirve API + frontend)
 cd backend
 pnpm install
 Copy-Item .env.example .env   # ajustá si hace falta
-pnpm dev                      # http://localhost:3000
+pnpm dev                      # http://localhost:3000 (API + frontend)
 
-# Frontend (otra terminal)
+# Desarrollo front aislado (opcional, solo hot reload)
 cd frontend
 pnpm install
-pnpm dev                      # http://localhost:3001
+pnpm dev                      # http://localhost:3001 (solo para desarrollo)
 ```
+
+> **Deploy:** En producción, Express sirve el frontend estático desde `GET /`. No necesitás un servidor separado.
 
 ## Variables de entorno
 
 | Variable | Requerida | Default | Descripción |
 |----------|-----------|---------|-------------|
 | `PORT` | No | `3000` | Puerto del servidor |
-| `MONGODB_URI` | No | `mongodb://127.0.0.1:27017/url-shortener` | URI de conexión a MongoDB |
-| `BASE_URL` | **Sí** | — | URL base para generar los links cortos (ej: `https://tu-dominio.com`) |
-| `CORS_ORIGIN` | **Sí** | — | Origen permitido para CORS (ej: `https://tu-frontend.com`) |
-| `FRONTEND_URL` | **Sí** | — | URL del frontend (ej: `https://tu-frontend.com`) |
+| `MONGODB_URI` | **Sí** | — | URI de conexión a MongoDB (ej: `mongodb://127.0.0.1:27017/url-shortener`) |
+| `BASE_URL` | No | `http://localhost:3000` | URL base para generar links cortos (ej: `https://tu-dominio.com`) |
+| `CORS_ORIGIN` | No | `*` | Origen(es) permitidos para CORS, separados por coma (ej: `https://a.com,https://b.com`) |
+| `FRONTEND_URL` | No | `http://localhost:3001` | URL del frontend para links en páginas de error |
 | `NODE_ENV` | No | `development` | `development` o `production` |
 
-> **Producción**: En modo `production`, `CORS_ORIGIN` no puede ser `*`, y `BASE_URL`/`FRONTEND_URL` no pueden contener `localhost`.
+> **Producción:** `CORS_ORIGIN` no puede ser `*`, y `BASE_URL`/`FRONTEND_URL` no pueden contener `localhost`, `127.0.0.1` ni `0.0.0.0`. `CORS_ORIGIN` acepta múltiples orígenes separados por coma.
 
 ## API
 
 | Método | Ruta | Descripción | Respuestas |
 |--------|------|-------------|------------|
 | `POST` | `/api/shorten` | Crea una URL corta. Body: `{"originalUrl": "https://..."}` | `201` con `{shortCode, shortUrl, expiresAt}` · `400` URL inválida o JSON malformado |
-| `GET` | `/:shortCode` | Redirige a la URL original | `302` + `Location` · `404` código inexistente · `410` URL vencida |
+| `GET` | `/:shortCode` | Redirige a la URL original (solo códigos de 6 chars alfanuméricos) | `302` + `Location` · `404` código inexistente · `410` URL vencida |
 | `GET` | `/api/urls/:shortCode` | Info de la URL (visitas, expiración, destino) | `200` JSON · `404` · `410` |
 | `GET` | `/health` | Health check con estado de DB | `200` OK · `503` DB no conectada |
+| `GET` | `/` | Frontend (servido desde Express) | `200` HTML |
 
 ### Ejemplos
 
@@ -92,7 +96,7 @@ curl -i http://localhost:3000/aB92xQ
 GET /zzzzzz        → 404 {"error":"URL no encontrada"}
 GET /vencida       → 410 {"error":"URL expirada"}
 POST ftp://        → 400 {"error":"Solo se permiten URLs http/https"}
-POST sin body      → 400 {"error":"Se requiere originalUrl"}
+POST sin body      → 400 {"error":"La URL no es válida"}
 ```
 
 ## Arquitectura
@@ -122,14 +126,14 @@ El error middleware mapea `DomainError` (y errores de Express/body-parser que tr
 ```
 backend/
 ├── src/
-│   ├── config/          # env (zod) y conexión a Mongo
+│   ├── config/          # env (zod + superRefine) y conexión a Mongo
 │   ├── controllers/     # capa HTTP
 │   ├── dto/             # DTOs de request/response
 │   ├── errors/          # DomainError + subclases
 │   ├── middlewares/     # errorHandler
-│   ├── models/          # schema de Mongoose
+│   ├── models/          # schema de Mongoose (autoIndex: false)
 │   ├── repositories/    # persistencia
-│   ├── routes/          # definición de rutas
+│   ├── routes/          # definición de rutas (/:shortCode con regex)
 │   ├── services/        # lógica de negocio
 │   └── utils/           # ShortCodeGenerator
 ├── server.js            # bootstrap + graceful shutdown
@@ -137,18 +141,17 @@ backend/
 
 frontend/
 ├── index.html           # página única
-├── css/styles.css       # estilos (mobile-first)
+├── css/styles.css       # estilos (mobile-first BEM)
 ├── js/
-│   ├── config.js        # API_URL
+│   ├── config.js        # API_URL (relativo al mismo origen)
 │   ├── api.js           # fetch wrappers
 │   └── app.js           # DOM, eventos, render, localStorage
-└── server.js            # mini server Node (puerto 3001)
+└── server.js            # mini server Node (solo desarrollo local)
 ```
 
 ## Tests
 
 ```bash
-# Backend
 cd backend
 pnpm test
 ```
@@ -156,7 +159,15 @@ pnpm test
 - **Unit tests** (`tests/shortUrl.service.test.js`): Service con repositorio fake, cubre creación, validación, colisiones (E11000), resolución, info sin incrementar visitas.
 - **Integration tests** (`tests/shortUrl.api.test.js`): Supertest + MongoDB real, cubre todos los endpoints, content negotiation (API routes siempre JSON), health check, idempotentes (limpian sus datos).
 
-## Estado
+## Deploy
 
-- Backend: completo y verificado end-to-end (201/302/400/404/410, health, info, visitas, rate limiting, graceful shutdown).
-- Frontend: funcional (vanilla HTML/CSS/JS, historial localStorage, click para ver stats).
+```bash
+# Render / Railway (un solo servicio)
+# 1. Conectá tu repo
+# 2. Seteá las variables de entorno en el panel
+# 3. Build command: cd backend && pnpm install
+# 4. Start command: cd backend && pnpm start
+# 5. Health check path: /health
+```
+
+> **Importante:** `frontend/server.js` es solo para desarrollo local. En producción, Express sirve el frontend desde `express.static`.
