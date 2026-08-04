@@ -4,4 +4,7 @@
 // (frontend/server.js, puerto 3001) apuntamos al backend local (3000).
 const DEV_BACKEND_URL = 'http://localhost:3000';
 
-export const API_URL = window.location.port === '3001' ? DEV_BACKEND_URL : '';
+export const API_URL=
+    window.location.hostname === "localhost"
+        ? "http://localhost:3000"
+        : "https://api-de-acortador-de-urls.onrender.com";
