@@ -16,7 +16,7 @@ Salida:   {"shortCode": "aB92xQ", "shortUrl": "https://tu-app.onrender.com/aB92x
 - Expiración a los 30 días (410 Gone al vencer)
 - Redirección con HTTP 302
 - Validación: solo URLs `http`/`https` (400 en caso contrario)
-- Rate limiting: 100 requests por 15 minutos en POST /api/shorten
+- Rate limiting: 100 requests por 15 minutos en POST /api/shorten y 300 por 15 minutos en GET /:shortCode
 - Body limit: 10KB máximo
 - Content negotiation: API routes siempre retornan JSON, rutas no-API retornan HTML para errores 404/410
 - Health check con verificación de estado de MongoDB
@@ -171,3 +171,5 @@ pnpm test
 ```
 
 > **Importante:** `frontend/server.js` es solo para desarrollo local. En producción, Express sirve el frontend desde `express.static`.
+
+> **Obligatorio:** seteá `NODE_ENV=production` en el panel. Además de activar las optimizaciones y los guards de env, es lo que habilita `trust proxy` (para que el rate limit vea la IP real del cliente detrás del proxy). Sin `NODE_ENV=production`, todo el tráfico comparte un solo bucket de rate limit y el sitio podría responder 429 masivamente.

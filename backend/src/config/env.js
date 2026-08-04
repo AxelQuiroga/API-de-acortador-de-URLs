@@ -12,7 +12,9 @@ const envSchema = z.object({
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
 }).superRefine((data, ctx) => {
   if (data.NODE_ENV === 'production') {
-    if (data.CORS_ORIGIN === '*') {
+    // CORS_ORIGIN ya pasó por el .transform() y es un array: el wildcard queda como '*'
+    // y un valor vacío/ausente no matchea ningún origen. Ambos son misconfig en producción.
+    if (data.CORS_ORIGIN.includes('*') || data.CORS_ORIGIN.every((v) => !v)) {
       ctx.addIssue({ code: 'custom', path: ['CORS_ORIGIN'], message: 'CORS_ORIGIN debe ser explícito en producción (no usar *)' });
     }
     if (/localhost|127\.0\.0\.1|0\.0\.0\.0/.test(data.BASE_URL)) {

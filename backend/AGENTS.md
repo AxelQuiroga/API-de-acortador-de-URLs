@@ -217,7 +217,12 @@ Una URL expirada responde 410 Gone (existió pero ya no está). El 404 queda par
 
 ## Rate limiting
 
-POST /api/shorten tiene rate limiting: 100 requests por 15 minutos por IP. Usa `express-rate-limit` con `trust proxy: 1` para funcionar detrás de proxies (Render, Railway, Nginx).
+Configuración centralizada en `middlewares/rateLimit.js` (factory `createRateLimiter`):
+
+- `POST /api/shorten`: 100 requests por 15 minutos por IP.
+- `GET /:shortCode` (redirección): 300 requests por 15 minutos por IP — cada GET hace un `$inc` en la DB, así se evita que un script la martille sin costo.
+
+`trust proxy` es condicional: `1` en producción (detrás de Render/Railway/Nginx) y `false` en desarrollo, para que el rate limit use la IP real del socket y no se pueda spoofear `X-Forwarded-For`.
 
 ## Body limit
 
