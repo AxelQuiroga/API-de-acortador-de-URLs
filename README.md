@@ -15,11 +15,13 @@ Salida:   {"shortCode": "aB92xQ", "shortUrl": "https://tu-app.onrender.com/aB92x
 - Contar visitas por URL corta
 - Expiración a los 30 días (410 Gone al vencer)
 - Redirección con HTTP 302
-- Validación: solo URLs `http`/`https` (400 en caso contrario)
+- Validación: URLs HTTP/HTTPS de hasta 2048 caracteres, sin credenciales embebidas (400 en caso contrario)
+- Validación consistente de códigos cortos: exactamente 6 caracteres alfanuméricos
+- Conteo de visitas condicionado atómicamente a que la URL siga vigente
 - Rate limiting: 100 requests por 15 minutos en POST /api/shorten y 300 por 15 minutos en GET /:shortCode
 - Body limit: 10KB máximo
 - Content negotiation: API routes siempre retornan JSON, rutas no-API retornan HTML para errores 404/410
-- Health check con verificación de estado de MongoDB
+- Health checks separados: `/health/live` (liveness) y `/health/ready` (readiness); `/health` se conserva como alias
 - Graceful shutdown (SIGTERM/SIGINT)
 - Frontend servido desde Express (mismo origen, sin CORS)
 
@@ -74,7 +76,9 @@ pnpm dev                      # http://localhost:3001 (solo para desarrollo)
 | `POST` | `/api/shorten` | Crea una URL corta. Body: `{"originalUrl": "https://..."}` | `201` con `{shortCode, shortUrl, expiresAt}` · `400` URL inválida o JSON malformado |
 | `GET` | `/:shortCode` | Redirige a la URL original (solo códigos de 6 chars alfanuméricos) | `302` + `Location` · `404` código inexistente · `410` URL vencida |
 | `GET` | `/api/urls/:shortCode` | Info de la URL (visitas, expiración, destino) | `200` JSON · `404` · `410` |
-| `GET` | `/health` | Health check con estado de DB | `200` OK · `503` DB no conectada |
+| `GET` | `/health` | Alias de readiness con estado de DB | `200` OK · `503` DB no conectada |
+| `GET` | `/health/live` | Liveness del proceso HTTP | `200` OK |
+| `GET` | `/health/ready` | Readiness con estado de DB | `200` OK · `503` DB no conectada |
 | `GET` | `/` | Frontend (servido desde Express) | `200` HTML |
 
 ### Ejemplos
@@ -149,12 +153,16 @@ frontend/
 └── server.js            # mini server Node (solo desarrollo local)
 ```
 
-## Tests
+## Tests y CI
 
 ```bash
 cd backend
 pnpm test
 ```
+
+Los tests de integración requieren MongoDB disponible en `MONGODB_URI`. GitHub Actions levanta MongoDB como servicio efímero y ejecuta los tests en cada push a `main`/ramas de trabajo y en cada pull request hacia `main`. No requiere secretos ni servicios pagos.
+
+El contrato OpenAPI 3.1 está en [`docs/openapi.yaml`](docs/openapi.yaml).
 
 - **Unit tests** (`tests/shortUrl.service.test.js`): Service con repositorio fake, cubre creación, validación, colisiones (E11000), resolución, info sin incrementar visitas.
 - **Integration tests** (`tests/shortUrl.api.test.js`): Supertest + MongoDB real, cubre todos los endpoints, content negotiation (API routes siempre JSON), health check, idempotentes (limpian sus datos).
