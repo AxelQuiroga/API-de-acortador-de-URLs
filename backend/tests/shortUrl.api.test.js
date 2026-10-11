@@ -98,6 +98,24 @@ describe("Short URL API", () => {
         assert.equal(info.body.visits, 20);
     });
 
+
+    test("concurrent redirects preserve the visit count", async () => {
+        const created = await request(app)
+            .post("/api/shorten")
+            .send({ originalUrl: "https://concurrency.example.com" });
+        assert.equal(created.status, 201);
+        const code = created.body.shortCode;
+        createdShortCodes.push(code);
+
+        const requests = Array.from({ length: 20 }, () => request(app).get(`/${code}`));
+        const responses = await Promise.all(requests);
+        assert.ok(responses.every((response) => response.status === 302));
+
+        const info = await request(app).get(`/api/urls/${code}`);
+        assert.equal(info.status, 200);
+        assert.equal(info.body.visits, 20);
+    });
+
     test("GET /api/urls/:shortCode returns URL info", async () => {
         const createRes = await request(app)
             .post("/api/shorten")
