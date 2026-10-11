@@ -87,6 +87,7 @@ describe("ShortUrlService", () => {
                 findByShortCode: async () => doc,
                 incrementVisits: async () => {
                     incrementCalls += 1;
+                    return doc;
                 },
             });
 
@@ -95,6 +96,22 @@ describe("ShortUrlService", () => {
 
             assert.equal(originalUrl, "https://google.com");
             assert.equal(incrementCalls, 1);
+        });
+
+
+        test("does not count a visit if the URL expires between lookup and increment", async () => {
+            let reads = 0;
+            const repository = createFakeRepository({
+                findByShortCode: async () => {
+                    reads += 1;
+                    return reads === 1
+                        ? doc
+                        : { ...doc, expiresAt: new Date(Date.now() - 1_000) };
+                },
+                incrementVisits: async () => null,
+            });
+            const service = new ShortUrlService(repository, fakeGenerator);
+            await assert.rejects(service.resolveShortUrl("abc123"), ShortUrlExpiredError);
         });
 
         test("throws ShortUrlNotFoundError when the code does not exist", async () => {
