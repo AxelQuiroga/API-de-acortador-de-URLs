@@ -117,7 +117,7 @@ describe("ShortUrlService", () => {
         test("throws ShortUrlNotFoundError when the code does not exist", async () => {
             const service = new ShortUrlService(createFakeRepository(), fakeGenerator);
 
-            await assert.rejects(service.resolveShortUrl("nope"), ShortUrlNotFoundError);
+            await assert.rejects(service.resolveShortUrl("nope12"), ShortUrlNotFoundError);
         });
 
         test("throws ShortUrlExpiredError when expiresAt is in the past", async () => {
@@ -169,7 +169,7 @@ describe("ShortUrlService", () => {
         test("throws ShortUrlNotFoundError when the code does not exist", async () => {
             const service = new ShortUrlService(createFakeRepository(), fakeGenerator);
 
-            await assert.rejects(service.getShortUrlInfo("nope"), ShortUrlNotFoundError);
+            await assert.rejects(service.getShortUrlInfo("nope12"), ShortUrlNotFoundError);
         });
 
         test("throws ShortUrlExpiredError when expiresAt is in the past", async () => {
