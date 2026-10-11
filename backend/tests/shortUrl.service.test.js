@@ -168,4 +168,52 @@ describe("ShortUrlService", () => {
             await assert.rejects(service.getShortUrlInfo("abc123"), ShortUrlExpiredError);
         });
     });
+
+    describe("URL validation hardening", () => {
+        test("rejects URLs containing embedded credentials", async () => {
+            const service = new ShortUrlService(createFakeRepository(), fakeGenerator);
+            await assert.rejects(
+                service.createShortUrl({ originalUrl: "https://user:secret@example.com/path" }),
+                InvalidUrlError
+            );
+        });
+
+        test("rejects URLs longer than 2048 characters", async () => {
+            const service = new ShortUrlService(createFakeRepository(), fakeGenerator);
+            const longUrl = `https://example.com/${"a".repeat(2048)}`;
+            await assert.rejects(service.createShortUrl({ originalUrl: longUrl }), InvalidUrlError);
+        });
+
+        test("returns a controlled 503 after five duplicate-code collisions", async () => {
+            let calls = 0;
+            const repository = createFakeRepository({
+                create: async () => {
+                    calls += 1;
+                    const error = new Error("Duplicate key");
+                    error.code = 11000;
+                    throw error;
+                },
+            });
+            const service = new ShortUrlService(repository, fakeGenerator);
+            await assert.rejects(
+                service.createShortUrl({ originalUrl: "https://example.com" }),
+                (error) => error.statusCode === 503 && /código único/.test(error.message)
+            );
+            assert.equal(calls, 5);
+        });
+    });
+
+    describe("short code validation", () => {
+        test("rejects malformed short codes before repository access", async () => {
+            let reads = 0;
+            const repository = createFakeRepository({
+                findByShortCode: async () => { reads += 1; return null; },
+            });
+            const service = new ShortUrlService(repository, fakeGenerator);
+            await assert.rejects(service.getShortUrlInfo("abc-12"), InvalidUrlError);
+            await assert.rejects(service.resolveShortUrl("abc-12"), InvalidUrlError);
+            assert.equal(reads, 0);
+        });
+    });
+
 });
