@@ -14,7 +14,7 @@ class ShortUrlRepository {
         return ShortUrl.findOneAndUpdate(
             { shortCode, expiresAt: { $gt: now } },
             { $inc: { visits: 1 }},
-            { new: true }
+            { returnDocument: "after" }
         );
     }
 }
