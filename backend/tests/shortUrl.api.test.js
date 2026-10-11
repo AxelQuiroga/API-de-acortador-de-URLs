@@ -9,8 +9,7 @@ const MONGODB_URI = process.env.MONGODB_URI || "mongodb://127.0.0.1:27017/url-sh
 
 // Códigos únicos por corrida: nunca tocan datos generados por otras corridas.
 const createdShortCodes = [];
-const uniqueCode = (prefix) =>
-    `${prefix}${Date.now()}${Math.random().toString(36).slice(2, 8)}`;
+const uniqueCode = () => `${Date.now().toString(36).slice(-4)}${Math.random().toString(36).slice(2, 4)}`;
 
 describe("Short URL API", () => {
     before(async () => {
@@ -104,7 +103,7 @@ describe("Short URL API", () => {
 
     test("GET /api/urls/:nonexistent returns 404 JSON", async () => {
         const res = await request(app)
-            .get("/api/urls/doesnotexist123")
+            .get("/api/urls/zzzzZ9")
             .set("Accept", "application/json");
 
         assert.equal(res.status, 404);
@@ -112,7 +111,7 @@ describe("Short URL API", () => {
     });
 
     test("GET /api/urls/expired returns 410 JSON", async () => {
-        const shortCode = uniqueCode("exp");
+        const shortCode = uniqueCode();
         createdShortCodes.push(shortCode);
 
         await ShortUrl.create({
@@ -138,4 +137,31 @@ describe("Short URL API", () => {
         assert.match(res.headers["content-type"], /application\/json/);
         assert.equal(res.body.error, "URL no encontrada");
     });
+
+    test("POST /api/shorten rejects embedded URL credentials", async () => {
+        const res = await request(app)
+            .post("/api/shorten")
+            .send({ originalUrl: "https://user:password@example.com" });
+        assert.equal(res.status, 400);
+        assert.match(res.body.error, /credenciales/i);
+    });
+
+    test("POST /api/shorten rejects URLs longer than 2048 characters", async () => {
+        const res = await request(app)
+            .post("/api/shorten")
+            .send({ originalUrl: `https://example.com/${"a".repeat(2048)}` });
+        assert.equal(res.status, 400);
+    });
+
+    test("GET /api/urls rejects malformed short codes consistently", async () => {
+        const res = await request(app).get("/api/urls/abc-12");
+        assert.equal(res.status, 400);
+    });
+
+    test("GET /health/live is independent of database readiness", async () => {
+        const res = await request(app).get("/health/live");
+        assert.equal(res.status, 200);
+        assert.equal(res.body.status, "OK");
+    });
+
 });
