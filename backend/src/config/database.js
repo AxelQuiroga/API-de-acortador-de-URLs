@@ -1,4 +1,5 @@
 import mongoose from "mongoose";
+import ShortUrl from "../models/shortUrl.model.js";
 import { env } from "./env.js";
 
 export const connectDatabase = async () => {
@@ -14,16 +15,14 @@ export const connectDatabase = async () => {
     console.log(`   Host: ${mongoose.connection.host}`);
     console.log(`   Database: ${mongoose.connection.name}`);
 
-    await mongoose.syncIndexes();
-    console.log("✅ Índices sincronizados.");
+    // createIndexes builds declared indexes without dropping indexes managed externally.
+    await ShortUrl.createIndexes();
+    console.log("✅ Índices requeridos verificados.");
 
   } catch (error) {
     console.error("❌ Error al conectar con MongoDB.");
     console.error(`   Tipo: ${error.name}`);
-    console.error(`   Mensaje: ${error.message}`);
-    if (error.reason) {
-      console.error(`   Razón: ${JSON.stringify(error.reason)}`);
-    }
+    console.error("   No se pudo establecer la conexión con la base de datos.");
     process.exit(1);
   }
 };

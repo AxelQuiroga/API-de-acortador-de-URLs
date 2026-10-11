@@ -1,0 +1,207 @@
+openapi: 3.1.0
+info:
+  title: URL Shortener API
+  version: 1.1.0
+  description: API para crear URLs cortas, redirigir y consultar métricas básicas.
+servers:
+  - url: http://localhost:3000
+    description: Desarrollo local
+paths:
+  /api/shorten:
+    post:
+      summary: Crear una URL corta
+      operationId: createShortUrl
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [originalUrl]
+              properties:
+                originalUrl:
+                  type: string
+                  format: uri
+                  maxLength: 2048
+                  description: Solo se aceptan URLs HTTP o HTTPS sin credenciales embebidas.
+                  example: https://example.com/docs
+      responses:
+        "201":
+          description: URL corta creada
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CreateShortUrlResponse"
+        "400":
+          description: URL ausente, inválida, demasiado larga o protocolo no permitido
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "429":
+          description: Límite de solicitudes excedido
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "503":
+          description: No fue posible generar un código único
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /{shortCode}:
+    get:
+      summary: Redirigir a la URL original
+      operationId: resolveShortUrl
+      parameters:
+        - $ref: "#/components/parameters/ShortCode"
+      responses:
+        "302":
+          description: Redirección HTTP a la URL original
+          headers:
+            Location:
+              schema:
+                type: string
+                format: uri
+        "400":
+          description: Código mal formado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: Código inexistente
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "410":
+          description: URL expirada
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "429":
+          description: Límite de solicitudes excedido
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /api/urls/{shortCode}:
+    get:
+      summary: Consultar información y visitas de una URL corta
+      operationId: getShortUrlInfo
+      parameters:
+        - $ref: "#/components/parameters/ShortCode"
+      responses:
+        "200":
+          description: Información de la URL corta
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ShortUrlInfo"
+        "400":
+          description: Código mal formado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: Código inexistente
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "410":
+          description: URL expirada
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /health/live:
+    get:
+      summary: Verificar que el proceso HTTP está vivo
+      operationId: liveness
+      responses:
+        "200":
+          description: Proceso activo
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [status]
+                properties:
+                  status:
+                    const: OK
+  /health/ready:
+    get:
+      summary: Verificar que la API puede atender tráfico
+      operationId: readiness
+      responses:
+        "200":
+          description: Aplicación lista y MongoDB conectado
+        "503":
+          description: MongoDB no está conectado
+  /health:
+    get:
+      summary: Alias compatible para readiness
+      operationId: health
+      responses:
+        "200":
+          description: Aplicación lista
+        "503":
+          description: Aplicación no lista
+components:
+  parameters:
+    ShortCode:
+      name: shortCode
+      in: path
+      required: true
+      description: Código alfanumérico de exactamente seis caracteres
+      schema:
+        type: string
+        pattern: "^[A-Za-z0-9]{6}$"
+  schemas:
+    CreateShortUrlResponse:
+      type: object
+      required: [shortCode, shortUrl, expiresAt]
+      properties:
+        shortCode:
+          type: string
+          pattern: "^[A-Za-z0-9]{6}$"
+        shortUrl:
+          type: string
+          format: uri
+        expiresAt:
+          type: string
+          format: date-time
+    ShortUrlInfo:
+      type: object
+      required: [shortCode, originalUrl, shortUrl, visits, createdAt, expiresAt]
+      properties:
+        shortCode:
+          type: string
+          pattern: "^[A-Za-z0-9]{6}$"
+        originalUrl:
+          type: string
+          format: uri
+        shortUrl:
+          type: string
+          format: uri
+        visits:
+          type: integer
+          minimum: 0
+        createdAt:
+          type: string
+          format: date-time
+        expiresAt:
+          type: string
+          format: date-time
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: string

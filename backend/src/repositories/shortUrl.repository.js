@@ -10,11 +10,11 @@ class ShortUrlRepository {
         return ShortUrl.findOne({ shortCode });
     }
 
-    async incrementVisits(shortCode) {
+    async incrementVisits(shortCode, now = new Date()) {
         return ShortUrl.findOneAndUpdate(
-            { shortCode },
+            { shortCode, expiresAt: { $gt: now } },
             { $inc: { visits: 1 }},
-            { new: true }
+            { returnDocument: "after" }
         );
     }
 }

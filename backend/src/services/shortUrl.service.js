@@ -22,7 +22,6 @@ class ShortUrlService {
         this.#parseAndValidateUrl(originalUrl);
 
         const MAX_RETRIES = 5;
-        let lastError;
 
         for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
             const shortCode = this.shortCodeGenerator.generate();
@@ -37,25 +36,32 @@ class ShortUrlService {
                 });
             } catch (err) {
                 if (err.code === 11000) {
-                    lastError = err;
                     continue;
                 }
                 throw err;
             }
         }
 
-        throw new DomainError(503, 'No se pudo generar un código único, intentá de nuevo');
+        throw new DomainError('No se pudo generar un código único, intentá de nuevo', 503);
     }
 
     async resolveShortUrl(shortCode) {
+        this.#validateShortCode(shortCode);
         const shortUrlDoc = await this.#getValidShortUrl(shortCode);
 
-        await this.shortUrlRepository.incrementVisits(shortCode);
-        
+        // The repository increments only while the record is still unexpired.
+        // A null result means it expired between the read and the atomic update.
+        const updated = await this.shortUrlRepository.incrementVisits(shortCode, new Date());
+        if (updated === null) {
+            await this.#getValidShortUrl(shortCode); // Throws the correct 404/410 domain error.
+            throw new DomainError("No se pudo registrar la visita, intentá de nuevo", 503);
+        }
+
         return shortUrlDoc.originalUrl;
     }
 
     async getShortUrlInfo(shortCode) {
+        this.#validateShortCode(shortCode);
         const shortUrlDoc = await this.#getValidShortUrl(shortCode);
 
         return new ShortUrlInfoResponseDto({
@@ -69,6 +75,10 @@ class ShortUrlService {
     }
 
     #parseAndValidateUrl(originalUrl) {
+        if (typeof originalUrl !== "string" || originalUrl.length === 0 || originalUrl.length > 2048) {
+            throw new InvalidUrlError("La URL debe tener entre 1 y 2048 caracteres");
+        }
+
         let parsedUrl;
         try {
             parsedUrl = new URL(originalUrl);
@@ -79,11 +89,23 @@ class ShortUrlService {
         if (parsedUrl.protocol !== "http:" && parsedUrl.protocol !== "https:") {
             throw new InvalidUrlError("Solo se permiten URLs http/https");
         }
+        if (parsedUrl.username || parsedUrl.password) {
+            throw new InvalidUrlError("No se permiten credenciales dentro de la URL");
+        }
+        if (!parsedUrl.hostname) {
+            throw new InvalidUrlError("La URL debe incluir un dominio válido");
+        }
 
         return parsedUrl;
     }
 
 
+
+    #validateShortCode(shortCode) {
+        if (typeof shortCode !== "string" || !/^[A-Za-z0-9]{6}$/.test(shortCode)) {
+            throw new InvalidUrlError("El código debe tener exactamente 6 caracteres alfanuméricos");
+        }
+    }
 
     async #getValidShortUrl(shortCode) {
         const shortUrlDoc = await this.shortUrlRepository.findByShortCode(shortCode);
