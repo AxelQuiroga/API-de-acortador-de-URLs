@@ -42,7 +42,7 @@ class ShortUrlService {
             }
         }
 
-        throw new DomainError(503, 'No se pudo generar un código único, intentá de nuevo');
+        throw new DomainError('No se pudo generar un código único, intentá de nuevo', 503);
     }
 
     async resolveShortUrl(shortCode) {
@@ -54,7 +54,7 @@ class ShortUrlService {
         const updated = await this.shortUrlRepository.incrementVisits(shortCode, new Date());
         if (updated === null) {
             await this.#getValidShortUrl(shortCode); // Throws the correct 404/410 domain error.
-            throw new DomainError(503, "No se pudo registrar la visita, intentá de nuevo");
+            throw new DomainError("No se pudo registrar la visita, intentá de nuevo", 503);
         }
 
         return shortUrlDoc.originalUrl;
