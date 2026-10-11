@@ -22,10 +22,7 @@ export const connectDatabase = async () => {
   } catch (error) {
     console.error("❌ Error al conectar con MongoDB.");
     console.error(`   Tipo: ${error.name}`);
-    console.error(`   Mensaje: ${error.message}`);
-    if (error.reason) {
-      console.error(`   Razón: ${JSON.stringify(error.reason)}`);
-    }
+    console.error("   No se pudo establecer la conexión con la base de datos.");
     process.exit(1);
   }
 };
