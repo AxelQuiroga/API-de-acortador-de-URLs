@@ -14,6 +14,7 @@ const uniqueCode = () => `${Date.now().toString(36).slice(-4)}${Math.random().to
 describe("Short URL API", () => {
     before(async () => {
         await mongoose.connect(MONGODB_URI);
+        await ShortUrl.createIndexes();
     });
 
     after(async () => {
@@ -130,7 +131,7 @@ describe("Short URL API", () => {
 
     test("GET /api/urls/:nonexistent always returns JSON (even with Accept: text/html)", async () => {
         const res = await request(app)
-            .get("/api/urls/doesnotexist123")
+            .get("/api/urls/zzzzZ9")
             .set("Accept", "text/html");
 
         assert.equal(res.status, 404);
