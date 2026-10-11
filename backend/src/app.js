@@ -34,14 +34,22 @@ app.use(morgan(env.NODE_ENV === 'production' ? 'combined' : 'dev'));
 app.use('/api/shorten', createRateLimiter({ windowMs: 15 * 60 * 1000, max: 100 }));
 
 // Health check con verificación de DB
-app.get("/health", (req, res) => {
+// Liveness: confirma que el proceso HTTP está vivo sin depender de MongoDB.
+app.get("/health/live", (req, res) => {
+    res.status(200).json({ status: "OK" });
+});
+
+// Readiness: usado por el proveedor de hosting para saber si puede recibir tráfico.
+const readinessHandler = (req, res) => {
     const dbState = mongoose.connection.readyState;
     if (dbState === 1) {
-        res.status(200).json({ status: "OK" });
-    } else {
-        res.status(503).json({ status: "ERROR", message: "Database not connected" });
+        return res.status(200).json({ status: "OK", database: "connected" });
     }
-});
+    return res.status(503).json({ status: "ERROR", database: "disconnected" });
+};
+app.get("/health/ready", readinessHandler);
+// Compatibilidad con el health-check ya configurado en el deploy.
+app.get("/health", readinessHandler);
 
 app.use(shortUrlRoutes);
 
